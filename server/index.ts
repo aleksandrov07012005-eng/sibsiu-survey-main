@@ -4,6 +4,11 @@ import cors from "cors";
 import helmet from "helmet";
 import client from "prom-client";
 import { runMigrations } from "./db/migrate";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const globalAny = globalThis as any;
 
@@ -75,6 +80,13 @@ export function createServer() {
       end({ status_code: res.statusCode });
     });
     next();
+  });
+
+  const clientPath = path.resolve(__dirname, '../../dist/spa');
+  app.use(express.static(clientPath));
+  app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next(); // не трогаем API
+      res.sendFile(path.join(clientPath, 'index.html'));
   });
 
   // Health check
