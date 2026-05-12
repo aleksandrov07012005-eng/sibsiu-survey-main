@@ -1,4 +1,5 @@
 import path from "path";
+import 'dotenv/config';
 import { createServer } from "./index";
 import * as express from "express";
 import { runMigrations } from "./db/migrate";
