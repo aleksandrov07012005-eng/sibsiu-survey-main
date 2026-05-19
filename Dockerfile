@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --no-frozen-lockfile && pnpm add dotenv
+RUN corepack enable && pnpm install --no-frozen-lockfile
 COPY . .
 RUN pnpm build
 
