@@ -1,5 +1,4 @@
 import { Pool } from 'pg';
-import 'dotenv/config';
 
 // Prefer DATABASE_URL if provided (e.g., Neon.tech), otherwise fall back to discrete vars
 const useConnectionString = !!process.env.DATABASE_URL;
