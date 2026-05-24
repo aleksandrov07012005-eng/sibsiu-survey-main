@@ -1,12 +1,5 @@
 import { query } from "../db/config";
-import { query } from "../db/config";
-import { supabase } from "../db/supabaseClient";
-import { prisma } from "../db/prismaClient";
 import { AuthUser, SurveyFingerprintRecord } from "../../shared/types";
-
-const prismaEnabled =
-  !!process.env.USE_PRISMA && process.env.USE_PRISMA === "true" && !!prisma;
-const supabaseEnabled = !!supabase;
 
 export interface SessionWithUser {
   token: string;
@@ -39,24 +32,6 @@ export class AuthRepository {
   }
 
   async listUsers(): Promise<AuthUser[]> {
-    if (prismaEnabled) {
-      const users = await prisma!.authUser.findMany({
-        orderBy: { created_at: "desc" },
-      });
-      return users.map((user) => this.mapUser(user));
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .order("created_at", { ascending: false });
-      if (error) {
-        throw error;
-      }
-      return (data ?? []).map((user) => this.mapUser(user));
-    }
-
     const result = await query(
       `SELECT id, email, full_name, role, is_active, created_at, updated_at FROM auth_users ORDER BY created_at DESC`,
     );
@@ -64,22 +39,6 @@ export class AuthRepository {
   }
 
   async getUserByEmail(email: string): Promise<AuthUser | null> {
-    if (prismaEnabled) {
-      const user = await prisma!.authUser.findUnique({ where: { email } });
-      return user ? this.mapUser(user) : null;
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .eq("email", email)
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data ? this.mapUser(data) : null;
-    }
-
     const result = await query(
       `SELECT id, email, full_name, role, is_active, created_at, updated_at FROM auth_users WHERE email = $1 LIMIT 1`,
       [email],
@@ -90,40 +49,6 @@ export class AuthRepository {
   async getUserWithPasswordByEmail(
     email: string,
   ): Promise<{ user: AuthUser; password_hash: string } | null> {
-    if (prismaEnabled) {
-      const record = await prisma!.authUser.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          email: true,
-          full_name: true,
-          role: true,
-          is_active: true,
-          created_at: true,
-          updated_at: true,
-          password_hash: true,
-        },
-      });
-      if (!record) return null;
-      const { password_hash, ...userRow } = record;
-      return { user: this.mapUser(userRow), password_hash };
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .select(
-          "id, email, full_name, role, is_active, created_at, updated_at, password_hash",
-        )
-        .eq("email", email)
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      if (!data) return null;
-      const { password_hash, ...userRow } = data;
-      return { user: this.mapUser(userRow), password_hash };
-    }
-
     const result = await query(
       `SELECT id, email, full_name, role, is_active, created_at, updated_at, password_hash FROM auth_users WHERE email = $1 LIMIT 1`,
       [email],
@@ -134,22 +59,6 @@ export class AuthRepository {
   }
 
   async getUserById(id: number): Promise<AuthUser | null> {
-    if (prismaEnabled) {
-      const user = await prisma!.authUser.findUnique({ where: { id } });
-      return user ? this.mapUser(user) : null;
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .eq("id", id)
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data ? this.mapUser(data) : null;
-    }
-
     const result = await query(
       `SELECT id, email, full_name, role, is_active, created_at, updated_at FROM auth_users WHERE id = $1 LIMIT 1`,
       [id],
@@ -171,21 +80,6 @@ export class AuthRepository {
       role: data.role ?? "admin",
       is_active: data.is_active ?? true,
     };
-
-    if (prismaEnabled) {
-      const created = await prisma!.authUser.create({ data: payload as any });
-      return this.mapUser(created);
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .insert(payload)
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .single();
-      if (error) throw error;
-      return this.mapUser(data);
-    }
 
     const result = await query(
       `INSERT INTO auth_users (email, full_name, password_hash, role, is_active)
@@ -211,25 +105,6 @@ export class AuthRepository {
     if (updates.role !== undefined) patch.role = updates.role;
     if (updates.is_active !== undefined) patch.is_active = updates.is_active;
 
-    if (prismaEnabled) {
-      const updated = await prisma!.authUser.update({
-        where: { id },
-        data: { ...patch } as any,
-      });
-      return this.mapUser(updated);
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .update({ ...patch, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data ? this.mapUser(data) : null;
-    }
-
     const setClauses: string[] = [];
     const values: any[] = [];
     let idx = 1;
@@ -251,25 +126,6 @@ export class AuthRepository {
     id: number,
     password_hash: string,
   ): Promise<AuthUser | null> {
-    if (prismaEnabled) {
-      const updated = await prisma!.authUser.update({
-        where: { id },
-        data: { password_hash, updated_at: new Date() },
-      });
-      return this.mapUser(updated);
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_users")
-        .update({ password_hash, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select("id, email, full_name, role, is_active, created_at, updated_at")
-        .single();
-      if (error) throw error;
-      return this.mapUser(data);
-    }
-
     const result = await query(
       `UPDATE auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, full_name, role, is_active, created_at, updated_at`,
       [password_hash, id],
@@ -278,21 +134,6 @@ export class AuthRepository {
   }
 
   private async fetchSessionRow(token: string) {
-    if (prismaEnabled) {
-      return prisma!.authSession.findUnique({ where: { token } });
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("auth_sessions")
-        .select("token, user_id, expires_at")
-        .eq("token", token)
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data || null;
-    }
-
     const result = await query(
       `SELECT token, user_id, expires_at FROM auth_sessions WHERE token = $1 LIMIT 1`,
       [token],
@@ -311,25 +152,6 @@ export class AuthRepository {
   }
 
   async createSession(userId: number, token: string, expiresAt: Date) {
-    if (prismaEnabled) {
-      await prisma!.authSession.create({
-        data: { user_id: userId, token, expires_at: expiresAt } as any,
-      });
-      return;
-    }
-
-    if (supabaseEnabled) {
-      const { error } = await supabase!
-        .from("auth_sessions")
-        .insert({
-          user_id: userId,
-          token,
-          expires_at: expiresAt.toISOString(),
-        });
-      if (error) throw error;
-      return;
-    }
-
     await query(
       `INSERT INTO auth_sessions (user_id, token, expires_at) VALUES ($1,$2,$3)`,
       [userId, token, expiresAt],
@@ -337,38 +159,10 @@ export class AuthRepository {
   }
 
   async deleteSession(token: string) {
-    if (prismaEnabled) {
-      await prisma!.authSession.deleteMany({ where: { token } });
-      return;
-    }
-
-    if (supabaseEnabled) {
-      const { error } = await supabase!
-        .from("auth_sessions")
-        .delete()
-        .eq("token", token);
-      if (error) throw error;
-      return;
-    }
-
     await query(`DELETE FROM auth_sessions WHERE token = $1`, [token]);
   }
 
   async deleteSessionsForUser(userId: number) {
-    if (prismaEnabled) {
-      await prisma!.authSession.deleteMany({ where: { user_id: userId } });
-      return;
-    }
-
-    if (supabaseEnabled) {
-      const { error } = await supabase!
-        .from("auth_sessions")
-        .delete()
-        .eq("user_id", userId);
-      if (error) throw error;
-      return;
-    }
-
     await query(`DELETE FROM auth_sessions WHERE user_id = $1`, [userId]);
   }
 
@@ -377,25 +171,6 @@ export class AuthRepository {
     token: string,
     expiresAt: Date,
   ) {
-    if (prismaEnabled) {
-      await prisma!.passwordResetToken.create({
-        data: { user_id: userId, token, expires_at: expiresAt } as any,
-      });
-      return;
-    }
-
-    if (supabaseEnabled) {
-      const { error } = await supabase!
-        .from("password_reset_tokens")
-        .insert({
-          user_id: userId,
-          token,
-          expires_at: expiresAt.toISOString(),
-        });
-      if (error) throw error;
-      return;
-    }
-
     await query(
       `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1,$2,$3)`,
       [userId, token, expiresAt],
@@ -410,37 +185,6 @@ export class AuthRepository {
     expires_at: Date;
     used: boolean;
   } | null> {
-    if (prismaEnabled) {
-      const entry = await prisma!.passwordResetToken.findFirst({
-        where: { token, used: false },
-      });
-      return entry
-        ? {
-            id: entry.id,
-            user_id: entry.user_id,
-            expires_at: new Date(entry.expires_at),
-            used: entry.used,
-          }
-        : null;
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("password_reset_tokens")
-        .select("id, user_id, expires_at, used")
-        .eq("token", token)
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      if (!data) return null;
-      return {
-        id: data.id,
-        user_id: data.user_id,
-        expires_at: new Date(data.expires_at),
-        used: data.used,
-      };
-    }
-
     const result = await query(
       `SELECT id, user_id, expires_at, used FROM password_reset_tokens WHERE token = $1 LIMIT 1`,
       [token],
@@ -455,23 +199,6 @@ export class AuthRepository {
   }
 
   async markPasswordTokenUsed(id: number) {
-    if (prismaEnabled) {
-      await prisma!.passwordResetToken.update({
-        where: { id },
-        data: { used: true },
-      });
-      return;
-    }
-
-    if (supabaseEnabled) {
-      const { error } = await supabase!
-        .from("password_reset_tokens")
-        .update({ used: true })
-        .eq("id", id);
-      if (error) throw error;
-      return;
-    }
-
     await query(`UPDATE password_reset_tokens SET used = true WHERE id = $1`, [
       id,
     ]);
@@ -484,26 +211,6 @@ export class AuthRepository {
     ip_address?: string;
     user_agent?: string;
   }): Promise<SurveyFingerprintRecord | null> {
-    if (prismaEnabled) {
-      const created = await prisma!.surveyFingerprint.create({
-        data: payload as any,
-        skipDuplicates: true,
-      });
-      return created ? this.mapFingerprint(created) : null;
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("survey_fingerprints")
-        .insert({ ...payload })
-        .select(
-          "survey_id, fingerprint, cookie_id, ip_address, user_agent, created_at",
-        )
-        .single();
-      if (error && error.code !== "23505") throw error;
-      return data ? this.mapFingerprint(data) : null;
-    }
-
     const result = await query(
       `INSERT INTO survey_fingerprints (survey_id, fingerprint, cookie_id, ip_address, user_agent)
        VALUES ($1,$2,$3,$4,$5)
@@ -524,26 +231,6 @@ export class AuthRepository {
     survey_id: number,
     fingerprint: string,
   ): Promise<SurveyFingerprintRecord | null> {
-    if (prismaEnabled) {
-      const found = await prisma!.surveyFingerprint.findFirst({
-        where: { survey_id, fingerprint },
-      });
-      return found ? this.mapFingerprint(found) : null;
-    }
-
-    if (supabaseEnabled) {
-      const { data, error } = await supabase!
-        .from("survey_fingerprints")
-        .select(
-          "survey_id, fingerprint, cookie_id, ip_address, user_agent, created_at",
-        )
-        .match({ survey_id, fingerprint })
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data ? this.mapFingerprint(data) : null;
-    }
-
     const result = await query(
       `SELECT survey_id, fingerprint, cookie_id, ip_address, user_agent, created_at FROM survey_fingerprints WHERE survey_id = $1 AND fingerprint = $2 LIMIT 1`,
       [survey_id, fingerprint],
