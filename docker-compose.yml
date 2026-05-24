@@ -9,7 +9,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://postgres:postgres@db:5432/sibsiu
-      USE_PRISMA: "true"
+      USE_PRISMA: "false"
       SUPABASE_URL: ""
       SUPABASE_KEY: ""
       UPSTASH_REDIS_REST_URL: "http://redis:8001"
