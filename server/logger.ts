@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 const lokiUrl = process.env.LOKI_URL;
 const lokiJobName = process.env.LOKI_JOB_NAME || "sibsiu-app";
 
