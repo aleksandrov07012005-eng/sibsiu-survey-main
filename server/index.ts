@@ -83,10 +83,10 @@ export function createServer() {
 
   const clientPath = path.resolve(__dirname, '../../dist/spa');
   app.use(express.static(clientPath));
-  app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api')) return next(); // не трогаем API
-      res.sendFile(path.join(clientPath, 'index.html'));
-  });
+  //app.get('*', (req, res, next) => {
+    //  if (req.path.startsWith('/api')) return next(); // не трогаем API
+      //res.sendFile(path.join(clientPath, 'index.html'));
+  //});
 
   // Health check
   app.get("/api/health", (_req, res) => {
