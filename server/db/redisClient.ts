@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 const baseUrl = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
