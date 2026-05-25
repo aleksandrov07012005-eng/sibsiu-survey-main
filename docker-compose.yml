@@ -9,9 +9,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://postgres:postgres@db:5432/sibsiu
-      USE_PRISMA: "false"
-      SUPABASE_URL: ""
-      SUPABASE_KEY: ""
       UPSTASH_REDIS_REST_URL: "http://redis:8001"
       UPSTASH_REDIS_REST_TOKEN: "dev-token"
       LOKI_URL: http://loki:3100/loki/api/v1/push
