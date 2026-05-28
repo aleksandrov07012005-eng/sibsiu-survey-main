@@ -36,12 +36,8 @@ if (!fs.existsSync(path.join(distPath, "index.html"))) {
 app.use(express.static(distPath));
 
 // Handle client-side routing - serve index.html for all non-API routes
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api/")) {
-    return next(); // Пропускаем API routes
-  }
-
-  res.sendFile(path.join(distPath, "index.html"));
+app.get('/{*splat}', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
 });
 app.listen(port, () => {
   console.log(`🚀 Production server running on port ${port}`);
